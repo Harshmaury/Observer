@@ -1,0 +1,19 @@
+name: observer
+id: observer
+type: web-api
+language: go
+version: 0.1.0
+keywords:
+  - observer
+  - tracing
+  - timeline
+capabilities:
+  - distributed-tracing
+  - trace-correlation
+  - trace-timeline
+depends_on:
+  - nexus
+  - forge
+runtime:
+  provider: process
+  port: 8086

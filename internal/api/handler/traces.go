@@ -46,7 +46,10 @@ func (h *TracesHandler) ByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	// Context deadline is 12s — greater than the HTTP client timeout (10s)
+	// so the client timeout fires before the parent context, giving clean
+	// error propagation rather than silent empty results. (ISSUE-005)
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
 	// Fetch from both sources concurrently.

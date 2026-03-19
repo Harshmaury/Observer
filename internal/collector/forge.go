@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	canon "github.com/Harshmaury/Canon/identity"
 	"github.com/Harshmaury/Observer/internal/trace"
 )
 
@@ -36,7 +37,7 @@ func (c *ForgeCollector) GetByTrace(ctx context.Context, traceID string) []*trac
 		return nil
 	}
 	if c.serviceToken != "" {
-		req.Header.Set("X-Service-Token", c.serviceToken)
+		req.Header.Set(canon.ServiceTokenHeader, c.serviceToken)
 	}
 
 	resp, err := c.httpClient.Do(req)

@@ -1,30 +1,35 @@
 # WORKFLOW-SESSION.md
-# Session: OB-phase1-observer-tracing
-# Date: 2026-03-17
+# Session: OB-fix-canon-migration
+# Date: 2026-03-19
 
-## What changed — Observer Phase 1 (ADR-014)
+## What changed
 
-New distributed tracing service. Discovers trace IDs from Nexus events,
-assembles full correlated timelines from Nexus + Forge on demand.
+Canon migration (ADR-016). Replaced raw "X-Service-Token" string
+literals in ForgeCollector and NexusCollector with canon.ServiceTokenHeader.
 
-## Setup and run
+## Modified files
+- internal/collector/forge.go  — canon import added, raw string replaced
+- internal/collector/nexus.go  — canon import added, raw string replaced
 
-mkdir -p ~/workspace/projects/apps/observer
-cd ~/workspace/projects/apps/observer
-unzip -o /mnt/c/Users/harsh/Downloads/engx-drop/observer-phase1-tracing-20260317.zip -d .
-go mod tidy && go build ./...
-go install ./cmd/observer/ && cp ~/go/bin/observer ~/bin/observer
-OBSERVER_SERVICE_TOKEN=7d5fcbe4-44b9-4a8f-8b79-f80925c1330e observer &
+## Apply
+
+cd ~/workspace/projects/apps/observer && \
+unzip -o /mnt/c/Users/harsh/Downloads/engx-drop/observer-fix-canon-20260319.zip -d . && \
+go build ./...
 
 ## Verify
 
-curl -s http://127.0.0.1:8086/health
-curl -s http://127.0.0.1:8086/traces/recent | jq '.data.traces'
-# Get a trace ID from recent, then:
-# curl -s http://127.0.0.1:8086/traces/<trace_id> | jq '.data'
+grep 'canon.ServiceTokenHeader' internal/collector/forge.go internal/collector/nexus.go
+# Expected: 1 line per file
+
+grep '"X-Service-Token"' internal/collector/forge.go internal/collector/nexus.go
+# Expected: (no output)
 
 ## Commit
 
-git init && git add . && \
-git commit -m "feat: observer tracing phase 1 (ADR-014)" && \
-git tag v0.1.0-phase1
+git add \
+  internal/collector/forge.go \
+  internal/collector/nexus.go \
+  WORKFLOW-SESSION.md && \
+git commit -m "fix: Canon migration — replace raw X-Service-Token in collectors (ADR-016)" && \
+git push origin main

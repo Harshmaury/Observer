@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	canon "github.com/Harshmaury/Canon/identity"
 	"github.com/Harshmaury/Observer/internal/trace"
 )
 
@@ -100,7 +101,7 @@ func (c *NexusCollector) get(ctx context.Context, path string) (*http.Response, 
 		return nil, err
 	}
 	if c.serviceToken != "" && path != "/health" {
-		req.Header.Set("X-Service-Token", c.serviceToken)
+		req.Header.Set(canon.ServiceTokenHeader, c.serviceToken)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

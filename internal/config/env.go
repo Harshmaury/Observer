@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	DefaultHTTPAddr  = ":8086"
+	DefaultHTTPAddr  = "127.0.0.1:8086"
 	DefaultNexusAddr = "http://127.0.0.1:8080"
 	DefaultForgeAddr = "http://127.0.0.1:8082"
 )

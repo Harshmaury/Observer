@@ -2,7 +2,7 @@ name: observer
 id: observer
 type: web-api
 language: go
-version: 0.1.0
+version: 0.2.0-phase2
 keywords:
   - observer
   - tracing

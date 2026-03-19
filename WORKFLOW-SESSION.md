@@ -1,35 +1,30 @@
 # WORKFLOW-SESSION.md
-# Session: OB-fix-canon-migration
+# Session: OB-phase2-trace-buffer
 # Date: 2026-03-19
 
-## What changed
+## What changed — Observer Phase 2
 
-Canon migration (ADR-016). Replaced raw "X-Service-Token" string
-literals in ForgeCollector and NexusCollector with canon.ServiceTokenHeader.
+Trace ring buffer increased from 50 to 200 entries. Busy platforms with
+many concurrent workflows were evicting recent traces before they could
+be queried. 200 is the right ceiling for local development platforms.
 
 ## Modified files
-- internal/collector/forge.go  — canon import added, raw string replaced
-- internal/collector/nexus.go  — canon import added, raw string replaced
+- internal/trace/store.go  — maxTraces 50 → 200
 
 ## Apply
 
 cd ~/workspace/projects/apps/observer && \
-unzip -o /mnt/c/Users/harsh/Downloads/engx-drop/observer-fix-canon-20260319.zip -d . && \
+unzip -o /mnt/c/Users/harsh/Downloads/engx-drop/observer-phase2-trace-buffer-20260319.zip -d . && \
 go build ./...
 
 ## Verify
 
-grep 'canon.ServiceTokenHeader' internal/collector/forge.go internal/collector/nexus.go
-# Expected: 1 line per file
-
-grep '"X-Service-Token"' internal/collector/forge.go internal/collector/nexus.go
-# Expected: (no output)
+grep "maxTraces" internal/trace/store.go
+# Expected: const maxTraces = 200
 
 ## Commit
 
-git add \
-  internal/collector/forge.go \
-  internal/collector/nexus.go \
-  WORKFLOW-SESSION.md && \
-git commit -m "fix: Canon migration — replace raw X-Service-Token in collectors (ADR-016)" && \
-git push origin main
+git add internal/trace/store.go WORKFLOW-SESSION.md && \
+git commit -m "feat(phase2): trace ring buffer 50 → 200" && \
+git tag v0.2.0-phase2 && \
+git push origin main --tags

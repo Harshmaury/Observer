@@ -1,6 +1,6 @@
 // @observer-project: observer
 // @observer-path: internal/trace/store.go
-// Store holds the last N unique trace IDs seen across the platform.
+// Phase 2: maxTraces increased from 50 to 200 (audit finding — buffer too small).
 // No SQLite — fully in-memory, stateless across restarts.
 package trace
 
@@ -9,13 +9,16 @@ import (
 	"time"
 )
 
-const maxTraces = 50
+// maxTraces is the maximum number of trace IDs held in the ring buffer.
+// Increased from 50 → 200 in phase 2 to cover busy platforms with many
+// concurrent workflows without dropping recent trace context.
+const maxTraces = 200
 
 // Store is a bounded in-memory set of recently seen trace IDs.
 type Store struct {
-	mu     sync.RWMutex
-	refs   []*TraceRef          // ordered by first seen, newest last
-	index  map[string]*TraceRef // fast lookup by trace ID
+	mu    sync.RWMutex
+	refs  []*TraceRef          // ordered by first seen, newest last
+	index map[string]*TraceRef // fast lookup by trace ID
 }
 
 // NewStore creates an empty Store.

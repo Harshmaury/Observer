@@ -1,71 +1,43 @@
 // @observer-project: observer
 // @observer-path: internal/collector/forge.go
+// ADR-039: full Herald migration — Forge history-by-trace calls now use typed client.
+// Replaces: raw http.NewRequestWithContext + anonymous struct decode.
 package collector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
-	canon "github.com/Harshmaury/Canon/identity"
+	herald "github.com/Harshmaury/Herald/client"
 	"github.com/Harshmaury/Observer/internal/trace"
 )
 
-// ForgeCollector fetches Forge execution history by trace ID.
+// ForgeCollector fetches Forge execution history by trace ID via Herald.
 type ForgeCollector struct {
-	baseURL      string
-	serviceToken string
-	httpClient   *http.Client
+	forge *herald.Client
 }
 
 // NewForgeCollector creates a ForgeCollector.
 func NewForgeCollector(baseURL, serviceToken string) *ForgeCollector {
 	return &ForgeCollector{
-		baseURL:      baseURL,
-		serviceToken: serviceToken,
-		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		forge: herald.NewForService(baseURL, serviceToken),
 	}
 }
 
 // GetByTrace fetches all execution records for a specific trace ID.
 func (c *ForgeCollector) GetByTrace(ctx context.Context, traceID string) []*trace.TimelineEntry {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		fmt.Sprintf("%s/history/%s", c.baseURL, traceID), nil)
+	records, err := c.forge.Forge().ByTrace(ctx, traceID)
 	if err != nil {
 		return nil
 	}
-	if c.serviceToken != "" {
-		req.Header.Set(canon.ServiceTokenHeader, c.serviceToken)
-	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		if resp != nil {
-			resp.Body.Close()
+	entries := make([]*trace.TimelineEntry, 0, len(records))
+	for _, r := range records {
+		ts := r.StartedAt
+		if ts.IsZero() {
+			ts = time.Time{}
 		}
-		return nil
-	}
-	defer resp.Body.Close()
-
-	var envelope struct {
-		OK   bool `json:"ok"`
-		Data []struct {
-			Intent     string `json:"intent"`
-			Target     string `json:"target"`
-			Status     string `json:"status"`
-			DurationMS int64  `json:"duration_ms"`
-			StartedAt  string `json:"started_at"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		return nil
-	}
-
-	entries := make([]*trace.TimelineEntry, 0, len(envelope.Data))
-	for _, r := range envelope.Data {
-		ts, _ := time.Parse(time.RFC3339Nano, r.StartedAt)
 		entries = append(entries, &trace.TimelineEntry{
 			At:      ts,
 			Source:  "forge",

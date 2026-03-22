@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	accord "github.com/Harshmaury/Accord/api"
 	"github.com/Harshmaury/Observer/internal/trace"
 	herald "github.com/Harshmaury/Herald/client"
 )
@@ -28,24 +29,17 @@ func NewNexusCollector(baseURL, serviceToken string) *NexusCollector {
 
 // PollRecent fetches new events since lastEventID and returns them as TimelineEntries.
 // Updates internal lastEventID cursor.
-func (c *NexusCollector) PollRecent(ctx context.Context) []nexusEvent {
+func (c *NexusCollector) PollRecent(ctx context.Context) []accord.EventDTO {
 	events, err := c.client.Events().Since(ctx, c.lastEventID, 100)
 	if err != nil {
 		return nil
 	}
-	result := make([]nexusEvent, 0, len(events))
+	result := make([]accord.EventDTO, 0, len(events))
 	for _, e := range events {
 		if e.ID > c.lastEventID {
 			c.lastEventID = e.ID
 		}
-		result = append(result, nexusEvent{
-			ID:        e.ID,
-			Type:      e.Type,
-			Component: e.Component,
-			Outcome:   e.Outcome,
-			TraceID:   e.TraceID,
-			CreatedAt: e.CreatedAt,
-		})
+		result = append(result, e)
 	}
 	return result
 }
@@ -73,13 +67,3 @@ func (c *NexusCollector) GetByTrace(ctx context.Context, traceID string) []*trac
 	return entries
 }
 
-// nexusEvent is the internal event shape used by the Observer trace store.
-// Mirrors the old raw struct — kept to avoid changing the store interface.
-type nexusEvent struct {
-	ID        int64
-	Type      string
-	Component string
-	Outcome   string
-	TraceID   string
-	CreatedAt string
-}

@@ -1,66 +1,41 @@
+// @observer-project: observer
+// @observer-path: SERVICE-CONTRACT.md
 # SERVICE-CONTRACT.md — Observer
+# @version: 0.2.0-phase2
+# @updated: 2026-03-25
 
-**Service:** observer
-**Domain:** Observer
-**Port:** 8086
-**ADRs:** ADR-014 (distributed tracing), ADR-020 (governance)
-**Version:** 0.1.0-phase1
-**Updated:** 2026-03-18
+**Port:** 8086 · **Domain:** Observer (read-only)
 
 ---
 
-## Role
+## Code
 
-Distributed tracing service. Discovers X-Trace-ID values from Nexus events
-and assembles correlated timelines from Nexus events and Forge execution
-history on demand. Observer is read-only.
-
----
-
-## Inputs
-
-- `Nexus GET /events?since=<id>` — trace ID discovery (polled every 5s)
-- `Forge GET /history/:trace_id` — timeline assembly (on demand per request)
+```
+internal/collector/nexus.go    polls GET /events?since=<id> every 5s — trace ID discovery
+internal/trace/store.go        ring buffer, 200 entries, sync.RWMutex
+internal/api/handler/traces.go GET /traces/recent · GET /traces/:trace_id
+```
 
 ---
 
-## Outputs
+## Contract
 
-- `GET /health`
-- `GET /traces/recent` — last 50 known trace IDs
-- `GET /traces/:trace_id` — full correlated timeline for one trace
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | none | Liveness |
+| GET | `/traces/recent` | token | Last 200 known trace IDs |
+| GET | `/traces/:trace_id` | token | Full correlated timeline |
 
----
-
-## Dependencies
-
-| Service | Used for              | Auth required   |
-|---------|-----------------------|-----------------|
-| Nexus   | Trace ID discovery    | X-Service-Token |
-| Forge   | Timeline assembly     | X-Service-Token |
+`GET /traces/:trace_id` queries Nexus and Forge concurrently on demand. Empty timeline returned on upstream failure.
 
 ---
 
-## Guarantees
+## Control
 
-- Ring buffer holds last 50 trace IDs — in-memory, no persistence.
-- Timeline assembly queries Nexus and Forge concurrently per request.
-- Graceful degradation — upstream unavailability returns empty timeline.
+Ring buffer holds last 200 trace IDs — in-memory, no persistence. `NexusCollector.lastEventID` written only by single polling goroutine. Per-request: two goroutines (Nexus + Forge) merged after both complete. Lost on restart.
 
-## Non-Responsibilities
+---
 
-- Observer never calls start/stop on Nexus.
-- Observer never writes to any platform database.
-- Observer is not the source of truth for events or executions —
-  it assembles a derived view from Nexus and Forge.
+## Context
 
-## Data Authority
-
-Derived, non-authoritative. Ring buffer is point-in-time. Lost on restart.
-
-## Concurrency Model
-
-- `trace.Store` protected by `sync.RWMutex`. Ring buffer reads return copies.
-- `NexusCollector.lastEventID` is written only by the single polling goroutine.
-- `GET /traces/:trace_id` spawns two goroutines (Nexus + Forge) per request,
-  merges results after both complete.
+Derives traces from Nexus and Forge. Not authoritative for events or executions. Never calls write endpoints.
